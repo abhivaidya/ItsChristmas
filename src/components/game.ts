@@ -11,6 +11,11 @@ export default class Game
     private _shadowGenerator: BABYLON.ShadowGenerator;
     private _assetsManager: BABYLON.AssetsManager;
 
+    private alphabetModels: {[key: string]: BABYLON.AbstractMesh} = {};
+
+    public from: string|null = "";
+    public to: string|null = "";
+
     constructor(canvasElement: string) 
     {
         BABYLON.Engine.ShadersRepository = "src/shaders/";
@@ -64,6 +69,7 @@ export default class Game
         this._assetsManager.addTextureTask('snowflake', 'assets/textures/snowflake.png');
         this._assetsManager.addMeshTask('environment', '', 'assets/3d/christmas.glb', '');
         this._assetsManager.addMeshTask('alphabets', '', 'assets/3d/alphabets.glb', '');
+        this._assetsManager.addMeshTask('santa', '', 'assets/3d/santa_with_anims_textures.glb', '');
         this._engine.loadingUIText = 'Loading...';
         this._assetsManager.onProgressObservable.add((task) => {
             const { remainingCount, totalCount } = task;
@@ -72,16 +78,30 @@ export default class Game
 
         this._assetsManager.onTaskSuccessObservable.add((task)=>{
             if(task.name == "environment")
+            {
                 (task as BABYLON.MeshAssetTask).loadedMeshes.forEach((mesh)=>{
                     let shadowMap = this._shadowGenerator.getShadowMap();
                     shadowMap!.renderList!.push(mesh);
                     mesh.receiveShadows = true;
                 });
-            
-            if(task.name == "snowflake")
-                this.generateSnowParticles((task as BABYLON.TextureAssetTask).texture);
-        });
+            }
 
+            if(task.name == "snowflake")
+            {
+                this.generateSnowParticles((task as BABYLON.TextureAssetTask).texture);
+            }
+
+            if(task.name == "alphabets")
+            {
+                (task as BABYLON.MeshAssetTask).loadedMeshes.forEach((mesh)=>{
+                    this.alphabetModels[mesh.name] = mesh;
+                    mesh.setEnabled(false);
+                });
+                
+                this.generateFromTo();
+            }
+        });
+        
         this._assetsManager.load();
 
         let ground = BABYLON.Mesh.CreateGround("ground", 200, 200, 1, this._scene);
@@ -151,6 +171,48 @@ export default class Game
         window.addEventListener('resize', () => {
             this._engine.resize();
         })
+    }
+
+    generateFromTo()
+    {
+        let from = "";
+        let to = "";
+
+        let fromMesh: BABYLON.AbstractMesh = new BABYLON.AbstractMesh("fromMesh", this._scene);
+        fromMesh.rotation.y = Math.PI / 1.33;
+        fromMesh.position = new BABYLON.Vector3(0, 0.25, 1);        
+        
+        if(this.from != null)
+            from = this.from;
+        
+        if(this.to != null)
+            to = this.to;
+        
+        let shadowMap = this._shadowGenerator.getShadowMap();
+        
+        for(let i = 0; i < from.length; i++)
+        {
+            let alphabet:BABYLON.Nullable<BABYLON.AbstractMesh> = this.alphabetModels[from[i]].clone(from[i], fromMesh);
+
+            if(alphabet)
+            {
+                alphabet.position.x = i * 0.25;
+                alphabet.rotation.x = Math.PI / 2;
+
+                shadowMap!.renderList!.push(alphabet);
+
+                console.log(alphabet.material);
+            }
+        }
+
+        fromMesh.position.x = from.length / 2 * 0.25;
+        // fromMesh.position.z = -from.length / 2 * 0.25;
+    }
+
+    private getMeshWidth(mesh:BABYLON.AbstractMesh)
+    {
+        let vectorsWorld = mesh.getBoundingInfo().boundingBox.vectorsWorld; 
+        return Number(vectorsWorld[1].x - (vectorsWorld[0].x));
     }
 
 }
