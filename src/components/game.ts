@@ -16,8 +16,18 @@ export default class Game
     public from: string|null = "";
     public to: string|null = "";
 
+    private santa: BABYLON.Mesh;
+
+    private keysDown: {[key: number]: boolean} = {};
+    private walkSpeed: number = 0.1;
+    private turnSpeed: number = 10.0;
+    private lastFrame: number = -1;
+
     constructor(canvasElement: string) 
     {
+        document.onkeydown = this.handleKeyDown.bind(this);
+        document.onkeyup = this.handleKeyUp.bind(this);
+
         BABYLON.Engine.ShadersRepository = "src/shaders/";
 
         this._canvas = document.querySelector(canvasElement) as HTMLCanvasElement;
@@ -100,6 +110,21 @@ export default class Game
                 
                 this.generateFromTo();
             }
+
+            if(task.name == "santa")
+            {
+                this.santa = new BABYLON.Mesh("santa", this._scene);
+
+                (task as BABYLON.MeshAssetTask).loadedMeshes.forEach((mesh)=>{
+                    this.santa.addChild(mesh);
+                });
+
+                this.santa.scaling = new BABYLON.Vector3(0.075, 0.075, 0.075);
+
+                let shadowMap = this._shadowGenerator.getShadowMap();
+                shadowMap!.renderList!.push(this.santa);
+                this.santa.receiveShadows = true;
+            }
         });
         
         this._assetsManager.load();
@@ -166,6 +191,34 @@ export default class Game
     {
         this._engine.runRenderLoop(() => {
             this._scene.render();
+
+            let current = new Date().getTime();
+
+            if (this.lastFrame == -1) {
+                this.lastFrame = current;
+            }
+
+            let elapsed = (current - this.lastFrame) / 1000.0;
+            this.lastFrame = current;
+
+            let yRot = 0;
+            let walkSpeed = 0;
+
+            if(this.keysDown[65]) 
+                yRot -= elapsed * this.turnSpeed;
+            else if(this.keysDown[68]) 
+                yRot += elapsed * this.turnSpeed;            
+
+            if(this.keysDown[87]) 
+                walkSpeed = this.walkSpeed;
+            else if(this.keysDown[83])
+                walkSpeed = -this.walkSpeed;
+
+            if(this.santa)
+            {
+                this.santa.translate(BABYLON.Axis.Z, walkSpeed, BABYLON.Space.LOCAL);
+                this.santa.rotate(BABYLON.Axis.Y, yRot/10, BABYLON.Space.WORLD);
+            }
         });
 
         window.addEventListener('resize', () => {
@@ -192,7 +245,7 @@ export default class Game
         
         for(let i = 0; i < from.length; i++)
         {
-            let alphabet:BABYLON.Nullable<BABYLON.AbstractMesh> = this.alphabetModels[from[i]].clone(from[i], fromMesh);
+            let alphabet: BABYLON.Nullable<BABYLON.AbstractMesh> = this.alphabetModels[from[i]].clone(from[i], fromMesh, true);
 
             if(alphabet)
             {
@@ -201,7 +254,7 @@ export default class Game
 
                 shadowMap!.renderList!.push(alphabet);
 
-                console.log(alphabet.material);
+                (alphabet.material as BABYLON.StandardMaterial).emissiveColor = BABYLON.Color3.Random();
             }
         }
 
@@ -213,6 +266,21 @@ export default class Game
     {
         let vectorsWorld = mesh.getBoundingInfo().boundingBox.vectorsWorld; 
         return Number(vectorsWorld[1].x - (vectorsWorld[0].x));
+    }
+
+    private handleKeyDown(event: KeyboardEvent) 
+    {
+        this.keysDown[event.keyCode] = true;
+    }
+    
+    private handleKeyUp(event: KeyboardEvent) 
+    {
+        this.keysDown[event.keyCode] = false;
+    }
+    
+    private degToRad(degrees: number) 
+    {
+        return degrees * Math.PI / 180;
     }
 
 }
