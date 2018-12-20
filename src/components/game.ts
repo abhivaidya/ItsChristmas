@@ -17,8 +17,7 @@ export default class Game
     public to: string|null = "";
 
     private santa: BABYLON.Mesh;
-    private santaSkeleton: BABYLON.Nullable<BABYLON.Skeleton>;
-    private santaAnimGroups: BABYLON.AnimationGroup[];
+    private santaAnimGroups: {[key: string]: BABYLON.AnimationGroup} = {};
 
     private keysDown: {[key: number]: boolean} = {};
     private walkSpeed: number = 0.1;
@@ -117,17 +116,18 @@ export default class Game
             {
                 this.santa = new BABYLON.Mesh("santa", this._scene);
 
-                this.santaSkeleton = (task as BABYLON.MeshAssetTask).loadedSkeletons[0];
-                if(this.santaSkeleton)
+                let santaSkeleton: BABYLON.Nullable<BABYLON.Skeleton> = (task as BABYLON.MeshAssetTask).loadedSkeletons[0];
+                if(santaSkeleton)
                 {
-                    this.santaSkeleton.animationPropertiesOverride = new BABYLON.AnimationPropertiesOverride();
-                    this.santaSkeleton.animationPropertiesOverride.enableBlending = true;
-                    this.santaSkeleton.animationPropertiesOverride.blendingSpeed = 0.05;
-                    this.santaSkeleton.animationPropertiesOverride.loopMode = 1;
+                    santaSkeleton.animationPropertiesOverride = new BABYLON.AnimationPropertiesOverride();
+                    santaSkeleton.animationPropertiesOverride.enableBlending = true;
+                    santaSkeleton.animationPropertiesOverride.blendingSpeed = 0.05;
+                    santaSkeleton.animationPropertiesOverride.loopMode = 1;
                 }
 
-                this.santaAnimGroups = this.santaSkeleton.getScene().animationGroups;
-                this.santaAnimGroups[2].play(true);
+                santaSkeleton.getScene().animationGroups.forEach((animationGroup) => {
+                    this.santaAnimGroups[animationGroup.name] = animationGroup;
+                });
 
                 (task as BABYLON.MeshAssetTask).loadedMeshes.forEach((mesh)=>{
                     this.santa.addChild(mesh);
@@ -285,11 +285,15 @@ export default class Game
     private handleKeyDown(event: KeyboardEvent) 
     {
         this.keysDown[event.keyCode] = true;
+        this.santaAnimGroups["Happy Walk"].play(true);
+        this.santaAnimGroups["Happy"].stop();
     }
     
     private handleKeyUp(event: KeyboardEvent) 
     {
         this.keysDown[event.keyCode] = false;
+        this.santaAnimGroups["Happy Walk"].stop();
+        this.santaAnimGroups["Happy"].play(true);
     }
     
     private degToRad(degrees: number) 
