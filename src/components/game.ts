@@ -17,6 +17,8 @@ export default class Game
     public to: string|null = "";
 
     private santa: BABYLON.Mesh;
+    private santaSkeleton: BABYLON.Nullable<BABYLON.Skeleton>;
+    private santaAnimGroups: BABYLON.AnimationGroup[];
 
     private keysDown: {[key: number]: boolean} = {};
     private walkSpeed: number = 0.1;
@@ -114,6 +116,18 @@ export default class Game
             if(task.name == "santa")
             {
                 this.santa = new BABYLON.Mesh("santa", this._scene);
+
+                this.santaSkeleton = (task as BABYLON.MeshAssetTask).loadedSkeletons[0];
+                if(this.santaSkeleton)
+                {
+                    this.santaSkeleton.animationPropertiesOverride = new BABYLON.AnimationPropertiesOverride();
+                    this.santaSkeleton.animationPropertiesOverride.enableBlending = true;
+                    this.santaSkeleton.animationPropertiesOverride.blendingSpeed = 0.05;
+                    this.santaSkeleton.animationPropertiesOverride.loopMode = 1;
+                }
+
+                this.santaAnimGroups = this.santaSkeleton.getScene().animationGroups;
+                this.santaAnimGroups[2].play(true);
 
                 (task as BABYLON.MeshAssetTask).loadedMeshes.forEach((mesh)=>{
                     this.santa.addChild(mesh);
