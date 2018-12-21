@@ -26,7 +26,7 @@ export default class Game
     private turnSpeed: number = 20.0;
     private lastFrame: number = -1;
 
-    private planOBB: BABYLON.Mesh;
+    private planOBB: BABYLON.AbstractMesh[] = [];
 
     private presentModels: BABYLON.Mesh[] = [];
     private presents: Present[] = []
@@ -109,7 +109,7 @@ export default class Game
                     mesh.receiveShadows = true;
 
                     if(mesh.name == "Collider")
-                        mesh.checkCollisions = true;
+                        this.planOBB.push(mesh);
                 });
             }
 
@@ -173,15 +173,6 @@ export default class Game
                 });
             }
         });
-
-        var matBB = new BABYLON.StandardMaterial("matBB", this._scene);
-        matBB.emissiveColor = new BABYLON.Color3(1, 1, 1);
-        matBB.wireframe = true;
-
-        this.planOBB = BABYLON.Mesh.CreateBox("OBB", 1, this._scene);
-        this.planOBB.scaling = new BABYLON.Vector3(1, 1, 0.05);
-        this.planOBB.material = matBB;
-        this.planOBB.position = new BABYLON.Vector3(2, 0, 0);
         
         this._assetsManager.load();
 
@@ -190,6 +181,15 @@ export default class Game
         (ground.material as BABYLON.StandardMaterial).diffuseColor = BABYLON.Color3.FromInts(193, 181, 151);
         (ground.material as BABYLON.StandardMaterial).specularColor = BABYLON.Color3.Black();
         ground.receiveShadows = true;
+
+        var matBB = new BABYLON.StandardMaterial("matBB", this._scene);
+        matBB.emissiveColor = new BABYLON.Color3(1, 1, 1);
+        matBB.wireframe = true;
+
+        // this.planOBB = BABYLON.Mesh.CreateBox("OBB", 1, this._scene);
+        // this.planOBB.scaling = new BABYLON.Vector3(1, 1, 0.05);
+        // this.planOBB.material = matBB;
+        // this.planOBB.position = new BABYLON.Vector3(2, 0, 0);
     }
 
     generateSnowParticles(texture:BABYLON.Texture)
@@ -272,10 +272,12 @@ export default class Game
 
             if(this.santa)
             {
-                if(this.santaCollider.intersectsMesh(this.planOBB, false))
-                {
-                    walkSpeed = -0.1;
-                }
+                this.planOBB.forEach((mesh) => {
+                    if(mesh.intersectsMesh(this.santaCollider, true))                    
+                    {
+                        walkSpeed = 0;
+                    }
+                });
 
                 this.santa.translate(BABYLON.Axis.Z, walkSpeed, BABYLON.Space.LOCAL);
                 this.santa.rotate(BABYLON.Axis.Y, yRot/10, BABYLON.Space.WORLD);
