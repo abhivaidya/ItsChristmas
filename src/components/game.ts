@@ -18,11 +18,14 @@ export default class Game
 
     private santa: BABYLON.Mesh;
     private santaAnimGroups: {[key: string]: BABYLON.AnimationGroup} = {};
+    private santaCollider: BABYLON.Mesh;
 
     private keysDown: {[key: number]: boolean} = {};
-    private walkSpeed: number = 0.1;
-    private turnSpeed: number = 10.0;
+    private walkSpeed: number = 0.2;
+    private turnSpeed: number = 20.0;
     private lastFrame: number = -1;
+
+    private planOBB: BABYLON.Mesh;
 
     constructor(canvasElement: string) 
     {
@@ -37,6 +40,8 @@ export default class Game
         this._scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
         this._scene.fogDensity = 0.05;
         this._scene.fogColor = new BABYLON.Color3(0.8, 0.83, 0.8);
+        this._scene.collisionsEnabled = true;
+        this._scene.gravity = new BABYLON.Vector3(0, 0, 0);
 
         this.createBasicEnv();
     }
@@ -94,6 +99,9 @@ export default class Game
                     let shadowMap = this._shadowGenerator.getShadowMap();
                     shadowMap!.renderList!.push(mesh);
                     mesh.receiveShadows = true;
+
+                    if(mesh.name == "Collider")
+                        mesh.checkCollisions = true;
                 });
             }
 
@@ -135,11 +143,27 @@ export default class Game
 
                 this.santa.scaling = new BABYLON.Vector3(0.075, 0.075, 0.075);
 
+                this.santaCollider = BABYLON.Mesh.CreateBox("collider", 0.5, this._scene);
+                this.santaCollider.position = new BABYLON.Vector3(0, 0.25, 0);
+                this.santaCollider.scaling = new BABYLON.Vector3(0.5, 1, 0.5);
+                this.santaCollider.visibility = 0;
+                // (this.santaCollider.material as BABYLON.StandardMaterial).alpha = 0;
+                this.santa.addChild(this.santaCollider);
+
                 let shadowMap = this._shadowGenerator.getShadowMap();
                 shadowMap!.renderList!.push(this.santa);
-                this.santa.receiveShadows = true;
+                // this.santa.receiveShadows = true;
             }
         });
+
+        var matBB = new BABYLON.StandardMaterial("matBB", this._scene);
+        matBB.emissiveColor = new BABYLON.Color3(1, 1, 1);
+        matBB.wireframe = true;
+
+        this.planOBB = BABYLON.Mesh.CreateBox("OBB", 1, this._scene);
+        this.planOBB.scaling = new BABYLON.Vector3(1, 1, 0.05);
+        this.planOBB.material = matBB;
+        this.planOBB.position = new BABYLON.Vector3(2, 0, 0);
         
         this._assetsManager.load();
 
@@ -230,6 +254,11 @@ export default class Game
 
             if(this.santa)
             {
+                if(this.santaCollider.intersectsMesh(this.planOBB, false))
+                {
+                    walkSpeed = -0.1;
+                }
+
                 this.santa.translate(BABYLON.Axis.Z, walkSpeed, BABYLON.Space.LOCAL);
                 this.santa.rotate(BABYLON.Axis.Y, yRot/10, BABYLON.Space.WORLD);
             }
@@ -285,15 +314,29 @@ export default class Game
     private handleKeyDown(event: KeyboardEvent) 
     {
         this.keysDown[event.keyCode] = true;
-        this.santaAnimGroups["Happy Walk"].play(true);
-        this.santaAnimGroups["Happy"].stop();
+
+        if(this.keysDown[87] || this.keysDown[83] )
+        {
+            if(!this.santaAnimGroups["Happy Walk"].isPlaying)
+            {            
+                this.santaAnimGroups["Happy"].stop();
+                this.santaAnimGroups["Happy Walk"].play(true);
+            }
+        }
     }
     
     private handleKeyUp(event: KeyboardEvent) 
     {
         this.keysDown[event.keyCode] = false;
-        this.santaAnimGroups["Happy Walk"].stop();
-        this.santaAnimGroups["Happy"].play(true);
+
+        if(!this.keysDown[87] && !this.keysDown[83])
+        {
+            if(!this.santaAnimGroups["Happy"].isPlaying)
+            {            
+                this.santaAnimGroups["Happy Walk"].stop();
+                this.santaAnimGroups["Happy"].play(true);
+            }
+        }
     }
     
     private degToRad(degrees: number) 
