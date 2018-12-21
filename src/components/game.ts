@@ -27,6 +27,9 @@ export default class Game
 
     private planOBB: BABYLON.Mesh;
 
+    private presentModels: BABYLON.Mesh[] = [];
+    private presents: Present[] = []
+
     constructor(canvasElement: string) 
     {
         document.onkeydown = this.handleKeyDown.bind(this);
@@ -86,6 +89,9 @@ export default class Game
         this._assetsManager.addMeshTask('environment', '', 'assets/3d/christmas.glb', '');
         this._assetsManager.addMeshTask('alphabets', '', 'assets/3d/alphabets.glb', '');
         this._assetsManager.addMeshTask('santa', '', 'assets/3d/santa_with_anims_textures.glb', '');
+        this._assetsManager.addMeshTask('present', '', 'assets/3d/present.glb', '');
+        this._assetsManager.addMeshTask('presentLow', '', 'assets/3d/presentLow.glb', '');
+        this._assetsManager.addMeshTask('presentRound', '', 'assets/3d/presentRound.glb', '');
         this._engine.loadingUIText = 'Loading...';
         this._assetsManager.onProgressObservable.add((task) => {
             const { remainingCount, totalCount } = task;
@@ -153,6 +159,16 @@ export default class Game
                 let shadowMap = this._shadowGenerator.getShadowMap();
                 shadowMap!.renderList!.push(this.santa);
                 // this.santa.receiveShadows = true;
+            }
+
+            if(task.name.indexOf("present") > -1)
+            {
+                let present: BABYLON.Mesh = new BABYLON.Mesh(task.name);
+                this.presentModels.push(present);
+                (task as BABYLON.MeshAssetTask).loadedMeshes.forEach((mesh)=>{
+                    mesh.parent = present;
+                    mesh.setEnabled(false);
+                });
             }
         });
 
@@ -343,5 +359,12 @@ export default class Game
     {
         return degrees * Math.PI / 180;
     }
+}
 
+class Present
+{
+    constructor()
+    {
+        
+    }
 }
