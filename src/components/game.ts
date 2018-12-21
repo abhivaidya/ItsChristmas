@@ -1,5 +1,6 @@
 import * as BABYLON from 'babylonjs';
 import 'babylonjs-loaders';
+import * as GUI from 'babylonjs-gui';
 import { arcRotateCameraFixer } from '../libs/tencentTouchFixers';
 
 export default class Game 
@@ -47,6 +48,7 @@ export default class Game
         this._scene.gravity = new BABYLON.Vector3(0, 0, 0);
 
         this.createBasicEnv();
+        this.createGUI();
     }
 
     createBasicEnv(): void 
@@ -359,12 +361,33 @@ export default class Game
     {
         return degrees * Math.PI / 180;
     }
+
+    private createGUI()
+    {
+        let guiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+        let btnTest = GUI.Button.CreateSimpleButton("but1", "Simple Button");
+        btnTest.width = "150px";
+        btnTest.height = "40px";
+        btnTest.color = "white";
+        btnTest.background = "grey";
+        btnTest.onPointerUpObservable.add(() => {
+            // if (btnClicked) {
+            //     btnClicked(btnTest);
+            // }
+        });
+        btnTest.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+        btnTest.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
+        btnTest.left = 12;
+        btnTest.top = 12;
+
+        guiTexture.addControl(btnTest);
+    }
 }
 
 class Present
 {
     constructor()
     {
-        
+
     }
 }
