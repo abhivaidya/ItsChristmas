@@ -8,7 +8,8 @@ export default class Game
     private _canvas: HTMLCanvasElement;
     private _engine: BABYLON.Engine;
     private _scene: BABYLON.Scene;
-    private _camera: BABYLON.ArcRotateCamera;
+    private _arcCamera: BABYLON.ArcRotateCamera;
+    private _freeCamera: BABYLON.FreeCamera;
     private _shadowGenerator: BABYLON.ShadowGenerator;
     private _assetsManager: BABYLON.AssetsManager;
 
@@ -17,19 +18,17 @@ export default class Game
     public from: string|null = "";
     public to: string|null = "";
 
+    private environment: BABYLON.Mesh;
+
     private santa: BABYLON.Mesh;
     private santaAnimGroups: {[key: string]: BABYLON.AnimationGroup} = {};
-    private santaCollider: BABYLON.Mesh;
 
-    private keysDown: {[key: number]: boolean} = {};
-    private walkSpeed: number = 0.2;
-    private turnSpeed: number = 20.0;
-    private lastFrame: number = -1;
+    // private keysDown: {[key: number]: boolean} = {};
+    // private walkSpeed: number = 0.2;
+    // private turnSpeed: number = 20.0;
+    // private lastFrame: number = -1;
 
-    private planOBB: BABYLON.AbstractMesh[] = [];
-
-    private presentModels: BABYLON.Mesh[] = [];
-    private presents: Present[] = []
+    private colors = ["5D5455", "EA4033", "E5A67B", "F2D6C1", "9DBC9D", "122521", "2D493A", "AA7153", "868080", "373938"];
 
     constructor(canvasElement: string) 
     {
@@ -72,45 +71,48 @@ export default class Game
 
         this._shadowGenerator = new BABYLON.ShadowGenerator(2048, d1);
 
-        this._camera = new BABYLON.ArcRotateCamera(
-            'arcam',
-            0,
-            Math.PI / 2,
-            5,
-            new BABYLON.Vector3(0, 1, 0),
-            this._scene
-        );
-        this._camera.upperBetaLimit = Math.PI / 2;
-        this._camera.lowerRadiusLimit = 5;
-        this._camera.upperRadiusLimit = 30;
-        arcRotateCameraFixer(this._camera as BABYLON.ArcRotateCamera);
-        this._camera.attachControl(this._canvas, false);
+        // this._arcCamera = new BABYLON.ArcRotateCamera(
+        //     'arcam',
+        //     0,
+        //     Math.PI / 2,
+        //     5,
+        //     new BABYLON.Vector3(0, 1, 0),
+        //     this._scene
+        // );
+        // this._arcCamera.upperBetaLimit = Math.PI / 2;
+        // this._arcCamera.lowerRadiusLimit = 5;
+        // this._arcCamera.upperRadiusLimit = 30;
+        // arcRotateCameraFixer(this._arcCamera as BABYLON.ArcRotateCamera);
+        // this._arcCamera.attachControl(this._canvas, false);
+
+        this._freeCamera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(-3.12, 1.3, 3.5), this._scene);
+        this._freeCamera.setTarget(new BABYLON.Vector3(0, 1, 0));
 
         this._assetsManager = new BABYLON.AssetsManager(this._scene);
         this._assetsManager.addTextureTask('snowflake', 'assets/textures/snowflake.png');
         this._assetsManager.addMeshTask('environment', '', 'assets/3d/christmas.glb', '');
         this._assetsManager.addMeshTask('alphabets', '', 'assets/3d/alphabets.glb', '');
         this._assetsManager.addMeshTask('santa', '', 'assets/3d/santa_with_anims_textures.glb', '');
-        this._assetsManager.addMeshTask('present', '', 'assets/3d/present.glb', '');
-        this._assetsManager.addMeshTask('presentLow', '', 'assets/3d/presentLow.glb', '');
-        this._assetsManager.addMeshTask('presentRound', '', 'assets/3d/presentRound.glb', '');
         this._engine.loadingUIText = 'Loading...';
         this._assetsManager.onProgressObservable.add((task) => {
             const { remainingCount, totalCount } = task;
-            this._engine.loadingUIText = 'We are loading the scene. ' + remainingCount + ' out of ' + totalCount + ' items still need to be loaded.';
+            this._engine.loadingUIText = 'Loading the scene. ' + remainingCount + ' out of ' + totalCount + ' items still need to be loaded.';
         });
 
         this._assetsManager.onTaskSuccessObservable.add((task)=>{
             if(task.name == "environment")
             {
+                this.environment = new BABYLON.Mesh("environment", this._scene);
+
                 (task as BABYLON.MeshAssetTask).loadedMeshes.forEach((mesh)=>{
+                    this.environment.addChild(mesh);
+
                     let shadowMap = this._shadowGenerator.getShadowMap();
                     shadowMap!.renderList!.push(mesh);
                     mesh.receiveShadows = true;
-
-                    if(mesh.name == "Collider")
-                        this.planOBB.push(mesh);
                 });
+
+                // this.environment.rotation.y = this.degToRad(250);
             }
 
             if(task.name == "snowflake")
@@ -125,7 +127,7 @@ export default class Game
                     mesh.setEnabled(false);
                 });
                 
-                this.generateFromTo();
+                // this.generateFromTo();
             }
 
             if(task.name == "santa")
@@ -150,28 +152,25 @@ export default class Game
                 });
 
                 this.santa.scaling = new BABYLON.Vector3(0.075, 0.075, 0.075);
+                this.santa.rotation.y = this.degToRad(-20);
+                this.santa.position.x = -1;
+                this.santa.position.z = 1;
 
-                this.santaCollider = BABYLON.Mesh.CreateBox("collider", 0.5, this._scene);
-                this.santaCollider.position = new BABYLON.Vector3(0, 0.25, 0);
-                this.santaCollider.scaling = new BABYLON.Vector3(0.5, 1, 0.5);
-                this.santaCollider.visibility = 0;
+                // this.santaCollider = BABYLON.Mesh.CreateBox("collider", 0.5, this._scene);
+                // this.santaCollider.position = new BABYLON.Vector3(0, 0.25, 0);
+                // this.santaCollider.scaling = new BABYLON.Vector3(0.5, 1, 0.5);
+                // this.santaCollider.visibility = 0;
                 // (this.santaCollider.material as BABYLON.StandardMaterial).alpha = 0;
-                this.santa.addChild(this.santaCollider);
+                // this.santa.addChild(this.santaCollider);
 
                 let shadowMap = this._shadowGenerator.getShadowMap();
                 shadowMap!.renderList!.push(this.santa);
                 // this.santa.receiveShadows = true;
             }
+        });
 
-            if(task.name.indexOf("present") > -1)
-            {
-                let present: BABYLON.Mesh = new BABYLON.Mesh(task.name);
-                this.presentModels.push(present);
-                (task as BABYLON.MeshAssetTask).loadedMeshes.forEach((mesh)=>{
-                    mesh.parent = present;
-                    mesh.setEnabled(false);
-                });
-            }
+        this._assetsManager.onTasksDoneObservable.add(()=>{
+            this.generateFromTo();
         });
         
         this._assetsManager.load();
@@ -182,14 +181,7 @@ export default class Game
         (ground.material as BABYLON.StandardMaterial).specularColor = BABYLON.Color3.Black();
         ground.receiveShadows = true;
 
-        var matBB = new BABYLON.StandardMaterial("matBB", this._scene);
-        matBB.emissiveColor = new BABYLON.Color3(1, 1, 1);
-        matBB.wireframe = true;
-
-        // this.planOBB = BABYLON.Mesh.CreateBox("OBB", 1, this._scene);
-        // this.planOBB.scaling = new BABYLON.Vector3(1, 1, 0.05);
-        // this.planOBB.material = matBB;
-        // this.planOBB.position = new BABYLON.Vector3(2, 0, 0);
+        let music = new BABYLON.Sound("Jingle Bells", "assets/sounds/jingle_bells.mp3", this._scene, null, { loop: true, autoplay: true });
     }
 
     generateSnowParticles(texture:BABYLON.Texture)
@@ -250,7 +242,7 @@ export default class Game
 
             let current = new Date().getTime();
 
-            if (this.lastFrame == -1) {
+            /*if (this.lastFrame == -1) {
                 this.lastFrame = current;
             }
 
@@ -282,6 +274,8 @@ export default class Game
                 this.santa.translate(BABYLON.Axis.Z, walkSpeed, BABYLON.Space.LOCAL);
                 this.santa.rotate(BABYLON.Axis.Y, yRot/10, BABYLON.Space.WORLD);
             }
+
+            this.presents.update();*/
         });
 
         window.addEventListener('resize', () => {
@@ -294,9 +288,11 @@ export default class Game
         let from = "";
         let to = "";
 
-        let fromMesh: BABYLON.AbstractMesh = new BABYLON.AbstractMesh("fromMesh", this._scene);
-        fromMesh.rotation.y = Math.PI / 1.33;
-        fromMesh.position = new BABYLON.Vector3(0, 0.25, 1);        
+        let fromNameMesh: BABYLON.AbstractMesh = new BABYLON.AbstractMesh("fromNameMesh", this._scene);
+        fromNameMesh.rotation.y = this.degToRad(135);
+
+        let toNameMesh: BABYLON.AbstractMesh = new BABYLON.AbstractMesh("toNameMesh", this._scene);
+        toNameMesh.rotation.y = this.degToRad(135);  
         
         if(this.from != null)
             from = this.from;
@@ -308,55 +304,71 @@ export default class Game
         
         for(let i = 0; i < from.length; i++)
         {
-            let alphabet: BABYLON.Nullable<BABYLON.AbstractMesh> = this.alphabetModels[from[i]].clone(from[i], fromMesh, true);
+            let alphabet: BABYLON.Nullable<BABYLON.AbstractMesh> = this.alphabetModels[from[i]].clone(from[i], fromNameMesh, true);
+            fromNameMesh.addChild(alphabet as BABYLON.AbstractMesh);
+            alphabet!.material = new BABYLON.StandardMaterial(from[i] + "Mat", this._scene);
 
             if(alphabet)
             {
-                alphabet.position.x = i * 0.25;
+                alphabet.position.x = i * 0.2;
+                // alphabet.position.y = 0.25;
                 alphabet.rotation.x = Math.PI / 2;
 
                 shadowMap!.renderList!.push(alphabet);
 
-                (alphabet.material as BABYLON.StandardMaterial).emissiveColor = BABYLON.Color3.Random();
+                (alphabet.material as BABYLON.StandardMaterial).emissiveColor = this.HexToRGB(this.colors[Math.floor(this.colors.length * Math.random())]);
             }
         }
+        
+        fromNameMesh.position = new BABYLON.Vector3(this.santa.position.x - 0.5, 0.25, this.santa.position.z);
 
-        fromMesh.position.x = from.length / 2 * 0.25;
-        // fromMesh.position.z = -from.length / 2 * 0.25;
-    }
+        for(let i = to.length - 1; i >= 0; i--)
+        {
+            let alphabet: BABYLON.Nullable<BABYLON.AbstractMesh> = this.alphabetModels[to[i]].clone(to[i], toNameMesh, true);
+            alphabet!.material = new BABYLON.StandardMaterial(to[i] + "Mat", this._scene);
 
-    private getMeshWidth(mesh:BABYLON.AbstractMesh)
-    {
-        let vectorsWorld = mesh.getBoundingInfo().boundingBox.vectorsWorld; 
-        return Number(vectorsWorld[1].x - (vectorsWorld[0].x));
+            if(alphabet)
+            {
+                alphabet.position.x = i * 0.2;
+                // alphabet.position.y = 0.25;
+                alphabet.rotation.x = this.degToRad(90);
+
+                shadowMap!.renderList!.push(alphabet);
+
+                (alphabet.material as BABYLON.StandardMaterial).emissiveColor = this.HexToRGB(this.colors[Math.floor(this.colors.length * Math.random())]);
+            }
+        }
+        
+        toNameMesh.position = new BABYLON.Vector3(this.santa.position.x - 0.5, 0.2, this.santa.position.z);
+        // toNameMesh.rotation = new BABYLON.Vector3(0 , Math.PI, 0);
     }
 
     private handleKeyDown(event: KeyboardEvent) 
     {
-        this.keysDown[event.keyCode] = true;
+        // this.keysDown[event.keyCode] = true;
 
-        if(this.keysDown[87] || this.keysDown[83] )
-        {
-            if(!this.santaAnimGroups["Happy Walk"].isPlaying)
-            {            
-                this.santaAnimGroups["Happy"].stop();
-                this.santaAnimGroups["Happy Walk"].play(true);
-            }
-        }
+        // if(this.keysDown[87] || this.keysDown[83] )
+        // {
+        //     if(!this.santaAnimGroups["Happy Walk"].isPlaying)
+        //     {            
+        //         this.santaAnimGroups["Happy"].stop();
+        //         this.santaAnimGroups["Happy Walk"].play(true);
+        //     }
+        // }
     }
     
     private handleKeyUp(event: KeyboardEvent) 
     {
-        this.keysDown[event.keyCode] = false;
+        // this.keysDown[event.keyCode] = false;
 
-        if(!this.keysDown[87] && !this.keysDown[83])
-        {
-            if(!this.santaAnimGroups["Happy"].isPlaying)
-            {            
-                this.santaAnimGroups["Happy Walk"].stop();
-                this.santaAnimGroups["Happy"].play(true);
-            }
-        }
+        // if(!this.keysDown[87] && !this.keysDown[83])
+        // {
+        //     if(!this.santaAnimGroups["Happy"].isPlaying)
+        //     {            
+        //         this.santaAnimGroups["Happy Walk"].stop();
+        //         this.santaAnimGroups["Happy"].play(true);
+        //     }
+        // }
     }
     
     private degToRad(degrees: number) 
@@ -364,32 +376,29 @@ export default class Game
         return degrees * Math.PI / 180;
     }
 
+    private HexToRGB(hex: string): BABYLON.Color3 
+    {
+        var r = this.HexToR(hex) / 255;
+        var g = this.HexToG(hex) / 255;
+        var b = this.HexToB(hex) / 255;
+
+        return new BABYLON.Color3(r, g, b);
+    }
+    
+    CutHex(h) { return (h.charAt(0) == "#") ? h.substring(1, 7) : h }
+    HexToR(h) { return parseInt((this.CutHex(h)).substring(0, 2), 16) }
+    HexToG(h) { return parseInt((this.CutHex(h)).substring(2, 4), 16) }
+    HexToB(h) { return parseInt((this.CutHex(h)).substring(4, 6), 16) }
+
     private createGUI()
     {
-        let guiTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
-        let btnTest = GUI.Button.CreateSimpleButton("but1", "Simple Button");
-        btnTest.width = "150px";
-        btnTest.height = "40px";
-        btnTest.color = "white";
-        btnTest.background = "grey";
-        btnTest.onPointerUpObservable.add(() => {
-            // if (btnClicked) {
-            //     btnClicked(btnTest);
-            // }
-        });
-        btnTest.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-        btnTest.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
-        btnTest.left = 12;
-        btnTest.top = 12;
-
-        guiTexture.addControl(btnTest);
-    }
-}
-
-class Present
-{
-    constructor()
-    {
-
+        let advancedTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+        
+        let image = new GUI.Image("but", "assets/textures/Merry_Christmas.png");
+        image.width = 0.25;
+        image.height = 0.2;
+        // image.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+        image.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP; 
+        advancedTexture.addControl(image);
     }
 }
